@@ -1,6 +1,6 @@
 namespace CoCoReTrade.Application;
 
-public sealed record UserProfileDto(string Id, string FullName, int TrustScore, bool HasAvatar);
+public sealed record UserProfileDto(string Id, string FullName, int TrustScore, bool HasAvatar, int SoldCount, int ConsignedCount);
 public sealed record AvatarLocation(string StorageKey, string ContentType);
 
 public interface IUserProfileRepository

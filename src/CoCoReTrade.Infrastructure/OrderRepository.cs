@@ -51,7 +51,7 @@ public sealed class OrderRepository(AppDbContext db) : IOrderRepository, IAccept
                 (ur, role) => new { ur.UserId, role.Name })
             .Where(x => x.Name == "Admin").Select(x => x.UserId).Distinct().ToListAsync(ct);
     public async Task<IReadOnlyList<Guid>> DueUnpaidOrdersAsync(DateTime cutoffUtc, int batchSize, CancellationToken ct) =>
-        await db.Orders.AsNoTracking().Where(x => x.Status == OrderStatus.PendingProcessing &&
+        await db.Orders.AsNoTracking().Where(x => (x.Status == OrderStatus.PendingProcessing || x.Status == OrderStatus.ReadyForPickup) &&
             x.PaymentStatus == PaymentStatus.Unpaid && x.CreatedAtUtc <= cutoffUtc)
             .OrderBy(x => x.CreatedAtUtc).Select(x => x.Id).Take(batchSize).ToListAsync(ct);
     public async Task<IReadOnlyList<Guid>> DueAcceptedPickupOrdersAsync(DateTime nowUtc, int batchSize, CancellationToken ct) =>

@@ -1,14 +1,14 @@
 @model IReadOnlyList<AdminProductItem>
-@{ ViewData["Title"] = "Ký gửi chờ kiểm định"; var inspectedOnly = (bool?)ViewBag.InspectedOnly == true; }
+@{ ViewData["Title"] = "Ký gửi chờ kiểm định"; var stage = (string?)ViewBag.Stage; }
 <header class="admin-page-header">
-    <div><div class="eyebrow">Kiểm định CoCo</div><h1 class="page-title">Ký gửi chờ duyệt</h1><p class="subtitle mb-0">Kiểm tra hiện vật, hoàn thiện thông tin và xác nhận trước khi đăng bán.</p></div>
+    <div><div class="eyebrow">Kiểm định CoCo</div><h1 class="page-title">@(stage == "rejected" ? "Ký gửi đã từ chối" : "Ký gửi chờ xử lý")</h1><p class="subtitle mb-0">Kiểm tra hiện vật, hoàn thiện thông tin và xác nhận trước khi đăng bán.</p></div>
     <span class="admin-status admin-status--warning">@Model.Count sản phẩm trong danh sách</span>
 </header>
 <form method="get" class="panel admin-toolbar mb-4">
-    @if (inspectedOnly) { <input type="hidden" name="inspectedOnly" value="true" /> }
     <div class="flex-grow-1"><label class="form-label" for="inspectionSearch">Tìm sản phẩm ký gửi</label><input class="form-control" id="inspectionSearch" type="search" name="search" value="@ViewBag.Search" placeholder="Nhập mã chờ duyệt, tên sản phẩm hoặc người bán" /></div>
+    <div><label class="form-label" for="inspectionStage">Giai đoạn</label><select class="form-select" id="inspectionStage" name="stage"><option value="">Tất cả chờ xử lý</option><option value="preliminary" selected="@(stage == "preliminary")">Chưa duyệt sơ bộ</option><option value="approved" selected="@(stage == "approved")">Đã duyệt sơ bộ</option><option value="changes" selected="@(stage == "changes")">Đang đợi cập nhật</option>@if (User.HasClaim(StaffPermissions.ClaimType, StaffPermissions.ManageProducts)) { <option value="rejected" selected="@(stage == "rejected")">Đã từ chối</option> }</select></div>
     <button class="btn btn-wine" type="submit"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#search" /></svg> Tìm kiếm</button>
-    @if (!string.IsNullOrWhiteSpace((string?)ViewBag.Search)) { <a class="btn btn-outline-wine" asp-action="Index" asp-route-inspectedOnly="@inspectedOnly">Xóa tìm kiếm</a> }
+    @if (!string.IsNullOrWhiteSpace((string?)ViewBag.Search) || stage is not null) { <a class="btn btn-outline-wine" asp-action="Index">Xóa lọc</a> }
 </form>
 @if (Model.Count == 0)
 {
@@ -20,11 +20,11 @@ else
     @foreach (var p in Model)
     {
         <div class="col-12 col-md-6 col-xl-4"><article class="panel admin-record-card h-100 d-flex flex-column">
-            <div class="d-flex align-items-center justify-content-between gap-2 mb-3"><span class="admin-code">@p.ConsignmentCode</span><span class="admin-status admin-status--warning">@(p.PreliminaryStatus == PreliminaryReviewStatus.Approved ? "Chờ kiểm định trực tiếp" : p.PreliminaryStatus == PreliminaryReviewStatus.ChangesRequested ? "Cần cập nhật" : "Chờ duyệt sơ bộ")</span></div>
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-3"><span class="admin-code">@p.ConsignmentCode</span><span class="admin-status admin-status--warning">@(p.Status == ProductStatus.Rejected ? "Đã từ chối" : p.PreliminaryStatus == PreliminaryReviewStatus.Approved ? "Chờ kiểm định trực tiếp" : p.PreliminaryStatus == PreliminaryReviewStatus.ChangesRequested ? "Cần cập nhật" : "Chờ duyệt sơ bộ")</span></div>
             <h2 class="fs-5">@p.Name</h2><div class="text-muted small mb-3">@p.Brand</div>
             <div class="spec-row"><span>Người ký gửi</span><strong>@p.SellerName</strong></div>
             <div class="spec-row mb-3"><span>Ngày gửi</span><strong>@p.CreatedAtUtc.AddHours(7).ToString("dd/MM/yyyy")</strong></div>
-            <a class="btn btn-outline-wine w-100 mt-auto" asp-action="Review" asp-route-id="@p.Id">@(p.PreliminaryStatus == PreliminaryReviewStatus.Approved ? "Mở phiếu kiểm định" : "Mở phiếu duyệt sơ bộ") <span aria-hidden="true">→</span></a>
+            <a class="btn btn-outline-wine w-100 mt-auto" asp-action="@(p.Status == ProductStatus.Rejected ? "Details" : "Review")" asp-route-id="@p.Id">@(p.Status == ProductStatus.Rejected ? "Xem chi tiết" : p.PreliminaryStatus == PreliminaryReviewStatus.Approved ? "Mở phiếu kiểm định" : "Mở phiếu duyệt sơ bộ") <span aria-hidden="true">→</span></a>
         </article></div>
     }
     </div>

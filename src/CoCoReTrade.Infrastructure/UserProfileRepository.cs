@@ -1,4 +1,5 @@
 using CoCoReTrade.Application;
+using CoCoReTrade.Domain;
 using Microsoft.EntityFrameworkCore;
 
 namespace CoCoReTrade.Infrastructure;
@@ -7,7 +8,10 @@ public sealed class UserProfileRepository(AppDbContext db) : IUserProfileReposit
 {
     public Task<UserProfileDto?> GetAsync(string userId, CancellationToken ct) =>
         db.Users.AsNoTracking().Where(x => x.Id == userId)
-            .Select(x => new UserProfileDto(x.Id, x.FullName, x.TrustScore, x.AvatarStorageKey != null))
+            .Select(x => new UserProfileDto(x.Id, x.FullName, x.TrustScore, x.AvatarStorageKey != null,
+                db.Orders.Count(order => order.SellerId == x.Id && order.Status == OrderStatus.Completed),
+                db.Products.Count(product => product.SellerId == x.Id &&
+                    (product.Status == ProductStatus.Active || product.Status == ProductStatus.Reserved || product.Status == ProductStatus.Sold))))
             .FirstOrDefaultAsync(ct);
     public Task<AvatarLocation?> AvatarAsync(string userId, CancellationToken ct) =>
         db.Users.AsNoTracking().Where(x => x.Id == userId && x.AvatarStorageKey != null && x.AvatarContentType != null)

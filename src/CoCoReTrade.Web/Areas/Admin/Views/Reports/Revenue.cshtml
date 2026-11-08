@@ -3,6 +3,7 @@
     ViewData["Title"] = "Báo cáo doanh thu";
     var selectedDate = Context.Request.Query["date"].FirstOrDefault() ?? DateTime.UtcNow.AddHours(7).ToString("yyyy-MM-dd");
     var selectedPeriod = Context.Request.Query["period"].FirstOrDefault() ?? "month";
+    var maxActivity = Math.Max(1, Model.Activity.SelectMany(bucket => new[] { bucket.ConsignedCount, bucket.SoldCount }).DefaultIfEmpty(0).Max());
 }
 <header class="admin-page-header"><div><div class="eyebrow">Tài chính CoCo</div><h1 class="page-title">Báo cáo doanh thu</h1><p class="subtitle mb-0">Hoa hồng và thu nhập từ các đơn đã hoàn tất, đã xác nhận thanh toán.</p></div><div class="d-flex flex-wrap align-items-center gap-2"><a class="btn btn-outline-wine btn-sm" asp-area="Admin" asp-controller="Wallets" asp-action="Platform">Xem Ví CoCo</a><span class="admin-status">Giờ Việt Nam</span></div></header>
 <form method="get" asp-area="Admin" asp-controller="Reports" asp-action="Revenue" class="panel admin-toolbar mb-4">
@@ -17,6 +18,31 @@
     <div class="col-12 col-md-4"><div class="panel admin-metric-card h-100"><h2 class="fs-6 text-muted">Đơn hoàn tất</h2><div class="admin-metric-value fs-3">@Model.CompletedOrderCount</div></div></div>
     <div class="col-12 col-md-4"><div class="panel admin-metric-card h-100"><h2 class="fs-6 text-muted">Đã ghi có vào ví người bán</h2><div class="admin-metric-value fs-4">@Model.SellerWalletCreditedAmount.ToString("N0") <span class="fs-6">VNĐ</span></div></div></div>
     <div class="col-12 col-md-4"><div class="panel admin-metric-card h-100"><h2 class="fs-6 text-muted">Còn chờ ghi có</h2><div class="admin-metric-value fs-4">@Model.SellerWalletPendingAmount.ToString("N0") <span class="fs-6">VNĐ</span></div></div></div>
+</div>
+<div class="row g-3 mb-4">
+    <div class="col-lg-7"><section class="panel h-100" aria-labelledby="activity-title">
+        <div class="d-flex flex-wrap justify-content-between gap-2"><div><h2 id="activity-title" class="fs-6 fw-bold mb-1">Món đồ ký gửi và bán thành công</h2><p class="small text-muted mb-0">Theo @Model.Period.ToLowerInvariant() · @Model.FromDate.ToString("dd/MM")–@Model.ThroughDate.ToString("dd/MM/yyyy")</p></div></div>
+        <div class="report-chart" role="img" aria-label="Biểu đồ số món đăng bán và đã bán theo kỳ">
+            @foreach (var bucket in Model.Activity)
+            {
+                <div class="report-chart-group" title="@bucket.Label: @bucket.ConsignedCount món đăng bán, @bucket.SoldCount món bán thành công">
+                    <div class="report-chart-bars">
+                        <div class="report-chart-bar report-chart-bar-consigned" style="height:@(Math.Max(3, bucket.ConsignedCount * 100.0 / maxActivity).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%" aria-hidden="true"><span>@bucket.ConsignedCount</span></div>
+                        <div class="report-chart-bar report-chart-bar-sold" style="height:@(Math.Max(3, bucket.SoldCount * 100.0 / maxActivity).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%" aria-hidden="true"><span>@bucket.SoldCount</span></div>
+                    </div><span class="report-chart-label">@bucket.Label</span>
+                </div>
+            }
+        </div>
+        <div class="report-chart-legend"><span><i class="report-legend-consigned"></i> Món được đăng bán</span><span><i class="report-legend-sold"></i> Món bán thành công</span></div>
+    </section></div>
+    <div class="col-lg-5"><section class="panel h-100" aria-labelledby="top-sellers-title">
+        <h2 id="top-sellers-title" class="fs-6 fw-bold mb-1">Top người dùng theo tuần</h2><p class="small text-muted">@Model.RankingFromDate.ToString("dd/MM")–@Model.RankingThroughDate.ToString("dd/MM/yyyy") · Xếp theo số món đã bán</p>
+        @if (Model.WeeklyTopSellers.Count == 0) { <p class="small text-muted mb-0">Chưa có món bán thành công trong tuần này.</p> }
+        else
+        {
+            <ol class="report-leaderboard">@foreach (var seller in Model.WeeklyTopSellers) { <li><span class="report-rank">@(Model.WeeklyTopSellers.ToList().IndexOf(seller) + 1)</span><div><strong>@seller.Name</strong><small>@seller.SoldCount món đã bán</small></div><span class="report-trust">@seller.TrustScore/100 uy tín</span></li> }</ol>
+        }
+    </section></div>
 </div>
 @if (Model.CompletedOrderCount == 0)
 {

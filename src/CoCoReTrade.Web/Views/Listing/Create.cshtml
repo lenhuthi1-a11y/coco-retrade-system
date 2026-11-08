@@ -7,9 +7,13 @@
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
             <section class="panel mb-4" aria-labelledby="photos-title">
                 <div class="form-section-heading"><span class="step-number">1</span><div><h2 id="photos-title" class="h5 mb-1">Ảnh thật của món đồ</h2><p class="small subtitle mb-0">Ảnh rõ giúp CoCo kiểm định và người mua dễ lựa chọn.</p></div></div>
-                <div class="upload-panel mt-4">
-                    <label asp-for="Images" class="form-label"></label><input asp-for="Images" class="form-control" type="file" accept="image/jpeg,image/png,image/webp" multiple required data-preview="photoPreview" data-max-files="10" aria-describedby="images-help" /><span asp-validation-for="Images" class="text-danger small"></span>
-                    <div id="images-help" class="form-text mt-2">Chọn từ 3 đến 10 ảnh. Có thể chọn thêm nhiều lần và xóa từng ảnh bằng dấu ×. JPG, PNG hoặc WebP, tối đa 5 MB mỗi ảnh.</div><div id="photoPreview" class="photo-preview"></div>
+                <div class="mt-4">
+                    <label asp-for="Images" class="form-label listing-photo-label">ẢNH THỰC TẾ CỦA MÓN ĐỒ (TỐI THIỂU 3 ẢNH RÕ NÉT) *</label>
+                    <div class="upload-panel listing-photo-dropzone" data-photo-dropzone>
+                        <input asp-for="Images" class="listing-photo-input" type="file" accept="image/jpeg,image/png,image/webp" multiple required data-preview="photoPreview" data-max-files="10" aria-describedby="images-help" />
+                        <div class="listing-photo-prompt"><strong>📸 Kéo thả hoặc bấm để tải lên 3 bức ảnh</strong><span id="images-help">Bao gồm: Mặt trước toàn cảnh, Mặt sau, và Cận cảnh tem mác nhãn giặt</span></div>
+                    </div>
+                    <span asp-validation-for="Images" class="text-danger small"></span><div id="photoPreview" class="photo-preview"></div><button type="button" class="btn btn-outline-wine btn-sm mt-3" data-photo-add>+ Thêm ảnh</button>
                 </div>
             </section>
             <section class="panel mb-4" aria-labelledby="product-info-title">

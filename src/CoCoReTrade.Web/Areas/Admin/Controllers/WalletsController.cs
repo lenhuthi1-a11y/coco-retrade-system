@@ -12,9 +12,13 @@ public sealed class WalletsController(IAdminWalletService wallets, IWalletServic
 {
     private string ActorId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     [HttpGet]
-    public async Task<IActionResult> Index(CancellationToken ct)
+    public async Task<IActionResult> Index(string? status, CancellationToken ct)
     {
-        ViewBag.Withdrawals = await wallets.WithdrawalsAsync(ActorId, ct);
+        var withdrawals = await wallets.WithdrawalsAsync(ActorId, ct);
+        ViewBag.Status = status;
+        ViewBag.Withdrawals = status == "actionRequired"
+            ? withdrawals.Where(request => request.Status is "Pending" or "Approved").ToList()
+            : withdrawals;
         ViewBag.Candidates = await wallets.PayoutCandidatesAsync(ActorId, ct);
         return View(await wallets.ListAsync(ActorId, ct));
     }

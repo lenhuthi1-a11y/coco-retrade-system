@@ -35,7 +35,7 @@ public sealed record AdminProductDetails(ProductDetails Product, string SellerNa
 public sealed record AdminProductItem(Guid Id, string ConsignmentCode, string Sku, string Name, string Brand,
     string SellerName, ProductStatus Status, int? VerifiedCondition, DateTime CreatedAtUtc,
     PreliminaryReviewStatus PreliminaryStatus = PreliminaryReviewStatus.Pending);
-public sealed record AdminProductDashboard(int Pending, int Inspected, int Active, int Rejected, int Reserved, int Sold);
+public sealed record AdminProductDashboard(int Pending, int ReadyForInspection, int Active, int Rejected, int Reserved, int Sold);
 public sealed record AuditEntry(Guid Id, string ActorId, string Action, string EntityType, string EntityId,
     string Details, DateTime CreatedAtUtc);
 
@@ -52,7 +52,7 @@ public interface IProductTransaction : IAsyncDisposable
 public interface IAdminProductRepository
 {
     Task<Product?> FindAsync(Guid id, CancellationToken ct);
-    Task<IReadOnlyList<AdminProductItem>> ListAsync(ProductStatus? status, string? search, CancellationToken ct, bool inspectedOnly = false);
+    Task<IReadOnlyList<AdminProductItem>> ListAsync(ProductStatus? status, string? search, CancellationToken ct, bool readyForInspectionOnly = false);
     Task<AdminProductDashboard> DashboardAsync(CancellationToken ct);
     Task<IReadOnlyList<AuditEntry>> AuditAsync(Guid? productId, CancellationToken ct);
     Task<string> SellerNameAsync(string sellerId, CancellationToken ct);
@@ -66,7 +66,7 @@ public interface IAdminProductRepository
 public interface IAdminProductService
 {
     Task<AdminProductDashboard> DashboardAsync(string actorId, CancellationToken ct);
-    Task<IReadOnlyList<AdminProductItem>> PendingAsync(string actorId, string? search, CancellationToken ct, bool inspectedOnly = false);
+    Task<IReadOnlyList<AdminProductItem>> PendingAsync(string actorId, string? search, CancellationToken ct, bool readyForInspectionOnly = false);
     Task<IReadOnlyList<AdminProductItem>> ManageAsync(string actorId, ProductStatus? status, string? search, CancellationToken ct);
     Task<AdminProductDetails?> GetAsync(string actorId, Guid id, CancellationToken ct);
     Task<AdminProductDetails> InspectAsync(string actorId, Guid id, InspectionSubmission request, CancellationToken ct);
@@ -90,10 +90,10 @@ public sealed class AdminProductService(IAdminProductRepository repository, ISta
         await permissions.EnsureAsync(actorId, StaffPermissions.ReadPending, ct);
         return await repository.DashboardAsync(ct);
     }
-    public async Task<IReadOnlyList<AdminProductItem>> PendingAsync(string actorId, string? search, CancellationToken ct, bool inspectedOnly = false)
+    public async Task<IReadOnlyList<AdminProductItem>> PendingAsync(string actorId, string? search, CancellationToken ct, bool readyForInspectionOnly = false)
     {
         await permissions.EnsureAsync(actorId, StaffPermissions.ReadPending, ct);
-        return await repository.ListAsync(ProductStatus.PendingApproval, search, ct, inspectedOnly);
+        return await repository.ListAsync(ProductStatus.PendingApproval, search, ct, readyForInspectionOnly);
     }
     public async Task<IReadOnlyList<AdminProductItem>> ManageAsync(string actorId, ProductStatus? status, string? search, CancellationToken ct)
     {
@@ -254,7 +254,7 @@ public sealed class AdminProductService(IAdminProductRepository repository, ISta
         new ProductDetails(p.Id, p.Sku, p.Name, p.Brand, p.Category, p.Size, p.OriginalPrice, p.AskingPrice,
             p.DeclaredCondition, p.VerifiedCondition, p.AllowOffers, p.Status, p.SellerId, p.RejectionReason,
             p.Images.OrderBy(x => x.SortOrder).Select(x => x.Id).ToList(), p.CreatedAtUtc, p.ConsignmentCode,
-            "", p.PreliminaryStatus, p.PreliminaryReason, Convert.ToBase64String(p.RowVersion)),
+            "", p.PreliminaryStatus, p.PreliminaryReason, Convert.ToBase64String(p.RowVersion), p.PublishedAtUtc),
         await repository.SellerNameAsync(p.SellerId, ct), Convert.ToBase64String(p.RowVersion),
         p.Inspections.OrderByDescending(x => x.CreatedAtUtc).Select(x => new InspectionSummary(x.Id, x.InspectorId,
             x.Approved, x.Name, x.Brand, x.Category, x.Size, x.OriginalPrice, x.AskingPrice, x.VerifiedCondition,

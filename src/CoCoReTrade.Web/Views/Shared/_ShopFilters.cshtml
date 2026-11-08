@@ -1,0 +1,22 @@
+@model ProductFilter
+@{ var f = Model; var sellerId = ViewBag.SellerId as string; var hasFilters = !string.IsNullOrWhiteSpace(f.Category) || !string.IsNullOrWhiteSpace(f.Brand) || !string.IsNullOrWhiteSpace(f.Size) || f.MinPrice.HasValue || f.MaxPrice.HasValue || f.MinCondition.HasValue || !string.IsNullOrWhiteSpace(f.Fulfillment); }
+<form method="get" class="panel shop-toolbar mb-4">
+    <div class="row g-3 align-items-end">
+        <div class="col-12 col-md-7"><label class="form-label" for="Search">Bạn đang tìm gì?</label><div class="search-field"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#search" /></svg><input class="form-control" id="Search" name="Search" value="@f.Search" placeholder="Tên món đồ, thương hiệu hoặc mã SKU" /></div></div>
+        <div class="col-7 col-md-3"><label class="form-label" for="Sort">Sắp xếp theo</label><select class="form-select" id="Sort" name="Sort"><option value="newest" selected="@(f.Sort == "newest")">Mới nhất</option><option value="price_asc" selected="@(f.Sort == "price_asc")">Giá tăng dần</option><option value="price_desc" selected="@(f.Sort == "price_desc")">Giá giảm dần</option><option value="popular" selected="@(f.Sort == "popular")">Được yêu thích nhất</option></select></div>
+        <div class="col-5 col-md-2"><button class="btn btn-wine w-100" type="submit">Tìm kiếm</button></div>
+    </div>
+    <details class="shop-filters" open="@hasFilters">
+        <summary><span><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#filter" /></svg> Bộ lọc chi tiết</span><span class="small text-muted">Danh mục, kích cỡ, giá…</span></summary>
+        <div class="row g-3 pt-3">
+            <div class="col-6 col-lg-3"><label class="form-label" for="Category">Danh mục</label><select class="form-select" id="Category" name="Category"><option value="">Tất cả danh mục</option>@foreach (var category in new[] { "Áo", "Quần", "Đầm/Váy", "Túi", "Phụ kiện" }) { <option value="@category" selected="@(f.Category == category)">@category</option> }</select></div>
+            <div class="col-6 col-lg-3"><label class="form-label" for="Size">Kích cỡ</label><select class="form-select" id="Size" name="Size"><option value="">Tất cả kích cỡ</option>@foreach (var size in new[] { "XS", "S", "M", "L", "XL", "Free size" }) { <option value="@size" selected="@(f.Size == size)">@UiText.For(size)</option> }</select></div>
+            <div class="col-6 col-lg-3"><label class="form-label" for="Brand">Thương hiệu</label><input class="form-control" id="Brand" name="Brand" value="@f.Brand" placeholder="Ví dụ: Zara, Uniqlo" /></div>
+            <div class="col-6 col-lg-3"><label class="form-label" for="MinCondition">Độ mới từ</label><select class="form-select" id="MinCondition" name="MinCondition"><option value="">Tất cả tình trạng</option>@foreach (var condition in new[] { 90, 95, 99 }) { <option value="@condition" selected="@(f.MinCondition == condition)">@condition%</option> }</select></div>
+            <div class="col-6 col-lg-3"><label class="form-label" for="MinPrice">Giá từ (VNĐ)</label><input class="form-control" id="MinPrice" name="MinPrice" type="text" inputmode="numeric" autocomplete="off" data-vnd-price value="@f.MinPrice" placeholder="0" /></div>
+            <div class="col-6 col-lg-3"><label class="form-label" for="MaxPrice">Giá đến (VNĐ)</label><input class="form-control" id="MaxPrice" name="MaxPrice" type="text" inputmode="numeric" autocomplete="off" data-vnd-price value="@f.MaxPrice" placeholder="Không giới hạn" /></div>
+            <div class="col-12 col-lg-3"><label class="form-label" for="Fulfillment">Cách nhận hàng</label><select class="form-select" id="Fulfillment" name="Fulfillment"><option value="">Tất cả hình thức</option><option value="pickup" selected="@(f.Fulfillment == "pickup")">Lấy tại CoCo</option><option value="shipping" selected="@(f.Fulfillment == "shipping")">Giao tận nơi</option></select></div>
+            <div class="col-12 col-lg-3 d-flex align-items-end gap-2"><button class="btn btn-wine flex-grow-1" type="submit">Áp dụng</button><a class="btn btn-outline-wine" asp-action="Index" asp-route-id="@sellerId">Đặt lại</a></div>
+        </div>
+    </details>
+</form>

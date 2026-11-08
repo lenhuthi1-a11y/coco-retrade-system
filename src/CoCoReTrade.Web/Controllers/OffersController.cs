@@ -49,6 +49,8 @@ public sealed class OffersController(IOfferService offers, IProductService produ
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         var offer = await offers.DetailsAsync(id, UserId, ct);
+        if (offer is not null)
+            ViewBag.Product = await products.VisibleDetailsAsync(offer.ProductId, UserId, User.IsInRole("Admin"), ct);
         return offer is null ? NotFound() : View(offer);
     }
     [HttpPost]

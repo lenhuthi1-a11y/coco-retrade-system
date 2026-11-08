@@ -26,7 +26,7 @@
             <p class="form-text">Nhập đầy đủ số tài khoản và tên ngân hàng. CoCo duyệt yêu cầu rồi chuyển tiền thủ công; trạng thái “Đã chuyển” chỉ xuất hiện sau khi nhân viên xác nhận giao dịch thực tế.</p>
             <input type="hidden" name="RequestKey" value="@Guid.NewGuid()" />
             <label for="amount" class="form-label">Số tiền rút (VNĐ)</label>
-            <input id="amount" name="Amount" type="number" min="1" max="@Model.Available" step="1" required class="form-control mb-3" />
+            <input id="amount" name="Amount" type="text" inputmode="numeric" autocomplete="off" data-vnd-price required class="form-control mb-3" />
             <label for="bankAccountNumber" class="form-label">Số tài khoản ngân hàng</label>
             <input id="bankAccountNumber" name="BankAccountNumber" type="text" inputmode="numeric" pattern="[0-9]{6,30}" minlength="6" maxlength="30" autocomplete="off" required class="form-control mb-3" placeholder="Nhập đầy đủ số tài khoản" />
             <label for="bankName" class="form-label">Tên ngân hàng</label>

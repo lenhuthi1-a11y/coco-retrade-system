@@ -4,17 +4,20 @@ namespace CoCoReTrade.Application;
 
 public sealed record HeldPickupOrderDto(Guid OrderId, Guid ProductId, string ProductSku,
     string ProductName, string RecipientName, string RecipientPhone, DateTime? PickupAtUtc,
-    DateTime? PickupDeadlineAtUtc, OrderStatus Status, bool UsesAcceptedOffer, decimal TotalAmount);
+    DateTime? PickupDeadlineAtUtc, OrderStatus Status, bool UsesAcceptedOffer, decimal TotalAmount,
+    string SellerName = "", DateTime? CreatedAtUtc = null);
 
 public interface IAdminHeldPickupRepository
 {
     Task<IReadOnlyList<HeldPickupOrderDto>> ListAsync(CancellationToken ct);
+    Task<IReadOnlyDictionary<string, string>> SellerNamesAsync(IReadOnlyCollection<string> ids, CancellationToken ct);
 }
 
 public interface IAdminOrderService
 {
     Task<IReadOnlyList<OrderDto>> QueueAsync(string actorId, CancellationToken ct);
     Task<IReadOnlyList<HeldPickupOrderDto>> HeldPickupsAsync(string actorId, CancellationToken ct);
+    Task<IReadOnlyDictionary<string, string>> SellerNamesAsync(string actorId, IReadOnlyCollection<string> ids, CancellationToken ct);
     Task<OrderDto?> DetailsAsync(Guid id, string actorId, CancellationToken ct);
     Task<OrderDto> ConfirmAsync(Guid id, string actorId, CancellationToken ct);
     Task<OrderDto> MarkReadyAsync(Guid id, string actorId, CancellationToken ct, string? trackingCode = null);
@@ -36,6 +39,12 @@ public sealed class AdminOrderService(IOrderService orders, IStaffPermissionChec
     {
         await permissions.EnsureAsync(actorId, StaffPermissions.ManageOrders, ct);
         return await heldPickups.ListAsync(ct);
+    }
+    public async Task<IReadOnlyDictionary<string, string>> SellerNamesAsync(string actorId,
+        IReadOnlyCollection<string> ids, CancellationToken ct)
+    {
+        await permissions.EnsureAsync(actorId, StaffPermissions.ManageOrders, ct);
+        return await heldPickups.SellerNamesAsync(ids, ct);
     }
     public async Task<OrderDto?> DetailsAsync(Guid id, string actorId, CancellationToken ct)
     {

@@ -1,7 +1,9 @@
 @model IReadOnlyList<OrderDto>
-@{ ViewData["Title"] = "Quản lý đơn hàng"; var group = (string?)ViewBag.Group; }
+@{ ViewData["Title"] = "Quản lý đơn hàng"; var group = (string?)ViewBag.Group;
+   var sellerNames = (IReadOnlyDictionary<string, string>)ViewBag.SellerNames; }
 <header class="admin-page-header"><div><div class="eyebrow">Vận hành cửa hàng</div><h1 class="page-title">Đơn hàng</h1><p class="subtitle mb-0">Mở một đơn để xử lý giao nhận và cập nhật tiến độ.</p></div><a class="btn btn-outline-wine" asp-action="HeldPickups">Xem hàng tạm giữ chờ lấy →</a></header>
-<p class="small text-muted">@Model.Count @(group == "active" ? "đơn đang xử lý" : group == "completed" ? "đơn đã hoàn tất" : "đơn trong danh sách")@if (group is "active" or "completed") { <a class="ms-2" asp-action="Index">Xem tất cả</a> }</p>
+<form method="get" class="panel admin-toolbar mb-4"><input type="hidden" name="group" value="@group" /><div class="flex-grow-1"><label class="form-label" for="orderSearch">Tìm đơn hàng</label><input class="form-control" id="orderSearch" type="search" name="search" value="@ViewBag.Search" placeholder="Tên sản phẩm, mã SKU hoặc người ký gửi" /></div><button class="btn btn-wine" type="submit">Tìm kiếm</button>@if (!string.IsNullOrWhiteSpace((string?)ViewBag.Search)) { <a class="btn btn-outline-wine" asp-action="Index" asp-route-group="@group">Xóa lọc</a> }</form>
+<p class="small text-muted">@Model.Count @(group == "active" ? "đơn đang xử lý" : group == "shipping" ? "đơn đang giao hàng" : group == "completed" ? "đơn đã hoàn tất" : "đơn trong danh sách")@if (group is "active" or "shipping" or "completed") { <a class="ms-2" asp-action="Index">Xem tất cả</a> }</p>
 @if (Model.Count == 0)
 {
     <div class="empty-state"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#package" /></svg><h2 class="fs-4 mt-3">Chưa có đơn hàng</h2><p class="mb-0">Đơn mới sẽ xuất hiện tại đây khi khách hoàn tất đặt hàng.</p></div>
@@ -14,7 +16,7 @@ else
         <div class="col-12 col-xl-6"><a class="panel admin-record-card offer-card d-block h-100" asp-action="Details" asp-route-id="@order.Id">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3"><span class="admin-code">@order.ProductSku</span><span class="admin-status @(order.Status == OrderStatus.Completed ? "admin-status--success" : "admin-status--muted")">@(order.Status == OrderStatus.Completed ? order.Fulfillment == FulfillmentType.Shipping ? "Giao hàng thành công" : "Đã nhận tại CoCo" : UiText.For(order.Status))</span></div>
             <h2 class="fs-5 mb-2">@order.ProductName</h2>
-            <div class="text-muted small mb-4">@UiText.For(order.Fulfillment) <span aria-hidden="true">·</span> @order.CreatedAtUtc.AddHours(7).ToString("dd/MM/yyyy HH:mm")</div>
+            <div class="text-muted small mb-4">Người ký gửi: @sellerNames.GetValueOrDefault(order.SellerId, "—") <span aria-hidden="true">·</span> @UiText.For(order.Fulfillment) <span aria-hidden="true">·</span> @order.CreatedAtUtc.AddHours(7).ToString("dd/MM/yyyy HH:mm")</div>
             <div class="d-flex justify-content-between align-items-end border-top pt-3 gap-2"><div><div class="small text-muted">Tổng đơn hàng</div><strong class="product-price">@order.TotalAmount.ToString("N0") VNĐ</strong></div><span class="small fw-semibold">Xem chi tiết <span aria-hidden="true">→</span></span></div>
         </a></div>
     }

@@ -15,11 +15,20 @@ public sealed class InspectionController(IAdminProductService products) : Contro
     private string ActorId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     [HttpGet, Authorize(Policy = StaffPermissions.ReadPending)]
-    public async Task<IActionResult> Index(string? search, bool inspectedOnly, CancellationToken ct)
+    public async Task<IActionResult> Index(string? search, string? stage, bool readyForInspectionOnly, CancellationToken ct)
     {
         ViewBag.Search = search;
-        ViewBag.InspectedOnly = inspectedOnly;
-        return View(await products.PendingAsync(ActorId, search, ct, inspectedOnly));
+        stage ??= readyForInspectionOnly ? "approved" : null;
+        ViewBag.Stage = stage;
+        if (stage == "rejected")
+            return View(await products.ManageAsync(ActorId, ProductStatus.Rejected, search, ct));
+        var items = await products.PendingAsync(ActorId, search, ct, stage == "approved");
+        return View(stage switch
+        {
+            "preliminary" => items.Where(item => item.PreliminaryStatus == PreliminaryReviewStatus.Pending).ToList(),
+            "changes" => items.Where(item => item.PreliminaryStatus == PreliminaryReviewStatus.ChangesRequested).ToList(),
+            _ => items
+        });
     }
 
     [HttpGet, Authorize(Policy = StaffPermissions.ReadPending)]

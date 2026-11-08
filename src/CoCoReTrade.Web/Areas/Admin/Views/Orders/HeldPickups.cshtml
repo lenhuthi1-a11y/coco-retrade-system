@@ -1,9 +1,11 @@
 @model IReadOnlyList<HeldPickupOrderDto>
 @inject ShippingPolicy Shipping
 @{ ViewData["Title"] = "Hàng tạm giữ chờ lấy";
-   var offset = TimeSpan.FromHours(Shipping.StoreUtcOffsetHours); }
+   var offset = TimeSpan.FromHours(Shipping.StoreUtcOffsetHours);
+   var nowUtc = (DateTime)ViewBag.NowUtc;
+   var reservationMinutes = (int)ViewBag.ReservationMinutes; }
 <header class="admin-page-header"><div><div class="eyebrow">Vận hành cửa hàng</div><h1 class="page-title">Hàng tạm giữ chờ lấy</h1><p class="subtitle mb-0">Các món đã có đơn nhận tại CoCo. Giữ riêng món đồ đến hạn khách tới lấy.</p></div><a class="btn btn-outline-wine" asp-action="Index">Tất cả đơn hàng</a></header>
-<div class="alert alert-light border mb-4">Món đồ xuất hiện ở đây sau khi người mua xác nhận đơn nhận tại CoCo. Trong thời gian tạm giữ, sản phẩm không hiện trên cửa hàng hoặc tìm kiếm.</div>
+<form method="get" class="panel admin-toolbar mb-4"><div class="flex-grow-1"><label class="form-label" for="heldSearch">Tìm món cần giữ</label><input class="form-control" id="heldSearch" type="search" name="search" value="@ViewBag.Search" placeholder="Tên sản phẩm, mã SKU hoặc người ký gửi" /></div><div><label class="form-label" for="remaining">Thời gian còn lại</label><select class="form-select" id="remaining" name="remaining"><option value="">Tất cả</option><option value="1h" selected="@(ViewBag.Remaining == "1h")">Dưới 1 giờ</option><option value="6h" selected="@(ViewBag.Remaining == "6h")">Dưới 6 giờ</option><option value="24h" selected="@(ViewBag.Remaining == "24h")">Dưới 24 giờ</option></select></div><button class="btn btn-wine" type="submit">Lọc</button>@if (!string.IsNullOrWhiteSpace((string?)ViewBag.Search) || ViewBag.Remaining is not null) { <a class="btn btn-outline-wine" asp-action="HeldPickups">Xóa lọc</a> }</form>
 @if (Model.Count == 0)
 {
     <div class="empty-state"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#package" /></svg><h2 class="fs-4 mt-3">Chưa có hàng chờ lấy</h2><p class="mb-0">Đơn nhận tại CoCo sẽ xuất hiện tại đây sau khi khách xác nhận.</p></div>
@@ -13,13 +15,16 @@ else
     <div class="row g-3 mb-5">
     @foreach (var order in Model)
     {
+        var deadline = order.PickupDeadlineAtUtc ?? order.CreatedAtUtc?.AddMinutes(reservationMinutes) ?? nowUtc;
+        var remainingTime = deadline - nowUtc;
         <div class="col-12 col-xl-6"><a class="panel admin-record-card offer-card d-block h-100" asp-action="Details" asp-route-id="@order.OrderId">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3"><span class="admin-code">@order.ProductSku</span><span class="admin-status admin-status--warning">@UiText.For(order.Status)</span></div>
             <h2 class="fs-5 mb-2">@order.ProductName</h2>
+            <div class="small text-muted mb-2">Người ký gửi: @order.SellerName</div>
             @if (order.PickupAtUtc.HasValue)
             { <div class="spec-row"><span>Giờ hẹn lấy</span><strong>@(new DateTimeOffset(order.PickupAtUtc.Value, TimeSpan.Zero).ToOffset(offset).ToString("dd/MM/yyyy HH:mm")) (giờ Việt Nam)</strong></div> }
-            @if (order.PickupDeadlineAtUtc.HasValue)
-            { <div class="spec-row"><span>Hạn tới lấy</span><strong>@(new DateTimeOffset(order.PickupDeadlineAtUtc.Value, TimeSpan.Zero).ToOffset(offset).ToString("dd/MM/yyyy HH:mm")) (giờ Việt Nam)</strong></div> }
+            <div class="spec-row"><span>Hạn tới lấy</span><strong>@(new DateTimeOffset(deadline, TimeSpan.Zero).ToOffset(offset).ToString("dd/MM/yyyy HH:mm"))</strong></div>
+            <div class="spec-row"><span>Thời gian còn lại</span><strong class="text-danger" data-held-countdown="@(new DateTimeOffset(deadline, TimeSpan.Zero).ToUnixTimeMilliseconds())">@((int)remainingTime.TotalHours) giờ @remainingTime.Minutes phút</strong></div>
             <div class="spec-row"><span>Người lấy</span><strong>@order.RecipientName · @order.RecipientPhone</strong></div>
             <div class="d-flex justify-content-between align-items-end border-top pt-3 mt-3 gap-2"><div><div class="small text-muted">@(order.UsesAcceptedOffer ? "Giá đã thỏa thuận" : "Giá niêm yết")</div><strong class="product-price">@order.TotalAmount.ToString("N0") VNĐ</strong></div><span class="small fw-semibold">Xử lý đơn <span aria-hidden="true">→</span></span></div>
         </a></div>

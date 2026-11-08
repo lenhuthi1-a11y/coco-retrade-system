@@ -9,6 +9,7 @@
 
 <section id="withdrawals" class="mb-5">
     <div class="admin-section-heading"><h2 class="fs-4 mb-1">Yêu cầu rút tiền</h2><p class="small text-muted mb-0">Duyệt yêu cầu, thực hiện chuyển khoản rồi xác nhận bằng mã giao dịch.</p></div>
+    @if ((string?)ViewBag.Status == "actionRequired") { <p class="small mb-3">Đang xem các yêu cầu chờ duyệt hoặc chờ chuyển khoản. <a asp-action="Index" asp-fragment="withdrawals">Xem tất cả</a></p> }
     @if (withdrawals.Count == 0)
     {
         <div class="panel empty-state"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#wallet" /></svg><h3 class="fs-5 mt-3">Chưa có yêu cầu rút tiền</h3><p class="mb-0">Yêu cầu từ người ký gửi sẽ được hiển thị tại đây.</p></div>

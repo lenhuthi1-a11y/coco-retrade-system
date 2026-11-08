@@ -8,23 +8,56 @@ namespace CoCoReTrade.Web.Areas.Admin.Controllers;
 
 [Area("Admin")]
 [Authorize(Policy = StaffPermissions.ManageOrders)]
-public sealed class OrdersController(IAdminOrderService orders) : Controller
+public sealed class OrdersController(IAdminOrderService orders, TimeProvider clock,
+    OrderExpirationPolicy expiration) : Controller
 {
     private string AdminId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
     [HttpGet]
-    public async Task<IActionResult> Index(string? group, CancellationToken ct)
+    public async Task<IActionResult> Index(string? group, string? search, CancellationToken ct)
     {
         var queue = await orders.QueueAsync(AdminId, ct);
+        var names = await orders.SellerNamesAsync(AdminId, queue.Select(order => order.SellerId).ToArray(), ct);
         ViewBag.Group = group;
-        return View(group switch
+        ViewBag.Search = search;
+        ViewBag.SellerNames = names;
+        var selected = group switch
         {
             "active" => queue.Where(x => x.Status is OrderStatus.PendingProcessing or OrderStatus.Shipping or OrderStatus.ReadyForPickup).ToList(),
+            "shipping" => queue.Where(x => (x.Status is OrderStatus.PendingProcessing or OrderStatus.Shipping) && x.Fulfillment == FulfillmentType.Shipping).ToList(),
             "completed" => queue.Where(x => x.Status == OrderStatus.Completed).ToList(),
             _ => queue
-        });
+        };
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            selected = selected.Where(order => order.ProductName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                order.ProductSku.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                names.GetValueOrDefault(order.SellerId, "").Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        return View(selected);
     }
-    [HttpGet] public async Task<IActionResult> HeldPickups(CancellationToken ct) =>
-        View(await orders.HeldPickupsAsync(AdminId, ct));
+    [HttpGet]
+    public async Task<IActionResult> HeldPickups(string? search, string? remaining, CancellationToken ct)
+    {
+        var held = await orders.HeldPickupsAsync(AdminId, ct);
+        var now = clock.GetUtcNow().UtcDateTime;
+        ViewBag.Search = search;
+        ViewBag.Remaining = remaining;
+        ViewBag.NowUtc = now;
+        ViewBag.ReservationMinutes = expiration.UnpaidReservationMinutes;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim();
+            held = held.Where(order => order.ProductName.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                order.ProductSku.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                order.SellerName.Contains(term, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+        var maxHours = remaining switch { "1h" => 1, "6h" => 6, "24h" => 24, _ => 0 };
+        if (maxHours > 0)
+            held = held.Where(order => (order.PickupDeadlineAtUtc ??
+                order.CreatedAtUtc?.AddMinutes(expiration.UnpaidReservationMinutes) ?? now) <= now.AddHours(maxHours)).ToList();
+        return View(held);
+    }
     [HttpGet]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {

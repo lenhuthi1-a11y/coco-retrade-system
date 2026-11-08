@@ -1,10 +1,16 @@
 @model CheckoutForm
+@inject TimeProvider Clock
 @{
     var quote = (CheckoutQuote)ViewBag.Quote;
     var shipping = (ShippingPolicy)ViewBag.Shipping;
     var product = ViewBag.Product as ProductDetails;
     var savedAddresses = (IReadOnlyList<AddressDto>)ViewBag.Addresses;
     ViewData["Title"] = "Xác nhận đặt hàng";
+    var now = Clock.GetUtcNow();
+    var latest = now.AddHours(24);
+    if (quote.OfferExpiresAtUtc.HasValue && quote.OfferExpiresAtUtc.Value < latest.UtcDateTime)
+        latest = new DateTimeOffset(quote.OfferExpiresAtUtc.Value, TimeSpan.Zero).AddMinutes(-1);
+    var offset = TimeSpan.FromHours(shipping.StoreUtcOffsetHours);
 }
 <div class="mt-4 mb-3"><a asp-controller="Shop" asp-action="Details" asp-route-id="@Model.ProductId">← Chi tiết sản phẩm</a></div>
 <div class="eyebrow">@(Model.OfferId.HasValue ? "Giá đã thỏa thuận" : "Mua ngay")</div>
@@ -23,14 +29,15 @@
         </select></div>
         <div id="pickupPaymentNotice" class="alert alert-light border mt-3">Thanh toán tiền mặt tại CoCo sau khi kiểm tra hàng. Không cần chuyển khoản trước.</div>
         <div id="shippingPaymentNotice" class="alert alert-light border mt-3" hidden>Kiểm tra hàng khi người giao hàng đến. Nếu nhận hàng, thanh toán tiền mặt cho người giao hàng. Không cần chuyển khoản trước.</div>
-        <div id="pickupFields" class="mt-3"><div class="alert alert-light border">Địa chỉ CoCo: <strong>@(shipping.CanPickup ? shipping.StoreAddress : "Chưa được cấu hình")</strong><br />
-            @if (quote.OfferExpiresAtUtc.HasValue)
-            { <span>Hẹn lấy trong giờ mở cửa @shipping.OpeningHour:00–@shipping.ClosingHour:00, trước hạn 24 giờ từ lúc chấp nhận giá. Sau khi bạn xác nhận đơn, CoCo tạm giữ món đồ và ẩn khỏi sàn. Quá hạn chưa nhận và chưa thanh toán, đơn được hủy và giá trở về giá niêm yết.</span> }
-            else
-            { <span>Giờ nhận: @shipping.OpeningHour:00–@shipping.ClosingHour:00, từ ngày mai đến 3 ngày tới.</span> }
+        <div id="pickupFields" class="mt-3"><div class="pickup-store-card">
+            <p class="pickup-store-address">📍 Tiệm CoCo Đà Nẵng: @(shipping.CanPickup ? shipping.StoreAddress : "Chưa được cấu hình")</p>
+            <p class="text-muted">⏰ Giờ mở cửa đón khách: @shipping.OpeningHour.ToString("00"):@shipping.OpeningMinute.ToString("00") – @shipping.ClosingHour.ToString("00"):00 hằng ngày</p>
+            <p class="pickup-store-time" id="pickupTimePreview" aria-live="polite">📅 Chọn ngày giờ dự kiến đến lấy trong 24 giờ tới</p>
+            <p class="small text-muted mb-0">💡 Khi xác nhận hẹn lấy, CoCo tạm giữ và ẩn món đồ khỏi sàn. Bạn kiểm tra món đồ trực tiếp tại tiệm trước khi thanh toán. Quá 24 giờ chưa nhận và chưa thanh toán, món đồ sẽ được mở bán lại.</p>
+            @if (quote.OfferExpiresAtUtc.HasValue) { <p class="small text-muted mt-2 mb-0">Với giá thỏa thuận, vui lòng đến lấy trước hạn hiệu lực của giá.</p> }
             @if (ViewBag.StoreMapUrl is string mapUrl) { <br /><a href="@mapUrl" target="_blank" rel="noopener noreferrer">Xem đường đi trên bản đồ →</a> }
         </div>
-            <label asp-for="PickupLocal" class="form-label"></label><input asp-for="PickupLocal" type="datetime-local" class="form-control" max="@(quote.OfferExpiresAtUtc.HasValue ? new DateTimeOffset(quote.OfferExpiresAtUtc.Value.AddSeconds(-1), TimeSpan.Zero).ToOffset(TimeSpan.FromHours(shipping.StoreUtcOffsetHours)).ToString("yyyy-MM-ddTHH:mm") : null)" /><span asp-validation-for="PickupLocal" class="text-danger small"></span></div>
+            <label asp-for="PickupLocal" class="form-label"></label><input asp-for="PickupLocal" type="datetime-local" class="form-control" min="@now.AddMinutes(1).ToOffset(offset).ToString("yyyy-MM-ddTHH:mm")" max="@latest.ToOffset(offset).ToString("yyyy-MM-ddTHH:mm")" /><span asp-validation-for="PickupLocal" class="text-danger small"></span></div>
         <div id="shippingFields" class="mt-3" hidden>
             @if (savedAddresses.Count > 0)
             { <label for="savedAddress" class="form-label">Chọn nhanh địa chỉ đã lưu</label><select id="savedAddress" class="form-select mb-3"><option value="">Nhập địa chỉ khác</option>@foreach (var a in savedAddresses) { <option value="@a.Id" data-recipient="@a.RecipientName" data-phone="@a.RecipientPhone" data-province="@a.Province" data-ward="@a.Ward" data-street="@a.StreetAddress">@a.RecipientName · @a.StreetAddress, @a.Ward, @a.Province</option> }</select> }
@@ -58,6 +65,20 @@ const preview = @(((bool?)ViewBag.PreviewMode == true).ToString().ToLowerInvaria
 const productId = '@Model.ProductId', offerId = '@Model.OfferId', merchandise = @quote.MerchandisePrice;
 const type = document.getElementById('Fulfillment'), province = document.getElementById('Province'), ward = document.getElementById('Ward');
 const pickup = document.getElementById('PickupLocal'), street = document.getElementById('StreetAddress');
+function updatePickupTime() {
+  pickup.setCustomValidity('');
+  const value = pickup.value;
+  const summary = document.getElementById('pickupTimePreview');
+  if (!value) { summary.textContent = '📅 Chọn ngày giờ dự kiến đến lấy trong 24 giờ tới'; return; }
+  const [date, time] = value.split('T');
+  const [year, month, day] = date.split('-');
+  summary.textContent = `📅 Ngày giờ dự kiến đến lấy: ${time} (${day}/${month}/${year}) · Giữ đồ trong 24 giờ`;
+  const [hours, minutes] = time.split(':').map(Number);
+  if (hours * 60 + minutes < @(shipping.OpeningHour * 60 + shipping.OpeningMinute) || hours * 60 + minutes > @(shipping.ClosingHour * 60))
+    pickup.setCustomValidity('Vui lòng chọn giờ đến lấy trong giờ mở cửa 08:30–21:00.');
+}
+pickup.addEventListener('input', updatePickupTime);
+updatePickupTime();
 const savedAddress = document.getElementById('savedAddress');
 if(savedAddress) savedAddress.addEventListener('change', () => {
   const selected = savedAddress.selectedOptions[0]; if(!selected.value) return;

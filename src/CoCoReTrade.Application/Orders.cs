@@ -10,18 +10,20 @@ public sealed class ShippingPolicy
     private readonly HashSet<string> innerZones;
     public int StoreUtcOffsetHours { get; }
     public int OpeningHour { get; }
+    public int OpeningMinute { get; }
     public int ClosingHour { get; }
     public string StoreAddress { get; }
     public bool CanPickup => !string.IsNullOrWhiteSpace(StoreAddress) &&
         !StoreAddress.StartsWith("SET_", StringComparison.OrdinalIgnoreCase);
 
     public ShippingPolicy(IEnumerable<ShippingZone>? innerCityZones = null, int storeUtcOffsetHours = 7,
-        int openingHour = 9, int closingHour = 21, string storeAddress = "")
+        int openingHour = 8, int closingHour = 21, string storeAddress = "", int openingMinute = 30)
     {
-        if (storeUtcOffsetHours is < -12 or > 14 || openingHour is < 0 or > 23 || closingHour is < 1 or > 24 || openingHour >= closingHour)
+        if (storeUtcOffsetHours is < -12 or > 14 || openingHour is < 0 or > 23 || openingMinute is < 0 or > 59 || closingHour is < 1 or > 24 || openingHour >= closingHour)
             throw new ArgumentException("Giờ nhận tại cửa hàng hoặc múi giờ không hợp lệ.");
         StoreUtcOffsetHours = storeUtcOffsetHours;
         OpeningHour = openingHour;
+        OpeningMinute = openingMinute;
         ClosingHour = closingHour;
         StoreAddress = storeAddress;
         innerZones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -44,17 +46,16 @@ public sealed class ShippingPolicy
     }
     public DateTime ParsePickupUtc(string? localTime, DateTime nowUtc)
     {
-        var (local, utc, offset) = ParseStoreTime(localTime);
-        var todayAtStore = new DateTimeOffset(nowUtc, TimeSpan.Zero).ToOffset(offset).Date;
-        if (utc <= nowUtc || local.Date < todayAtStore.AddDays(1) || local.Date > todayAtStore.AddDays(3))
-            throw new ArgumentException("Hãy chọn giờ nhận hàng trong 1 đến 3 ngày tới.");
+        var (_, utc, _) = ParseStoreTime(localTime);
+        if (utc <= nowUtc || utc > nowUtc.AddHours(24))
+            throw new ArgumentException("Hãy chọn ngày giờ dự kiến đến lấy trong 24 giờ tới.");
         return utc;
     }
 
     public DateTime ParseOfferPickupUtc(string? localTime, DateTime nowUtc, DateTime deadlineUtc)
     {
         var (_, utc, _) = ParseStoreTime(localTime);
-        if (utc <= nowUtc || utc >= deadlineUtc)
+        if (utc <= nowUtc || utc > nowUtc.AddHours(24) || utc >= deadlineUtc)
             throw new ArgumentException("Hãy chọn giờ nhận tại cửa hàng trước khi giá thỏa thuận hết hạn sau 24 giờ.");
         return utc;
     }
@@ -64,8 +65,8 @@ public sealed class ShippingPolicy
         if (!CanPickup) throw new InvalidOperationException("Chưa cấu hình địa chỉ nhận hàng tại CoCo.");
         if (!DateTime.TryParseExact(localTime, "yyyy-MM-ddTHH:mm", CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out var local)) throw new ArgumentException("Hãy chọn ngày và giờ nhận hàng.");
-        if (local.Hour < OpeningHour || local.Hour >= ClosingHour)
-            throw new ArgumentException($"Có thể nhận hàng từ {OpeningHour:00}:00 đến {ClosingHour:00}:00.");
+        if (local.TimeOfDay < new TimeSpan(OpeningHour, OpeningMinute, 0) || local.TimeOfDay > TimeSpan.FromHours(ClosingHour))
+            throw new ArgumentException($"Có thể nhận hàng từ {OpeningHour:00}:{OpeningMinute:00} đến {ClosingHour:00}:00 hằng ngày.");
         var offset = TimeSpan.FromHours(StoreUtcOffsetHours);
         return (local, new DateTimeOffset(local, offset).UtcDateTime, offset);
     }

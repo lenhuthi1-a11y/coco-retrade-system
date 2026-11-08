@@ -12,8 +12,16 @@ public sealed class SocialController(ISocialService social) : Controller
     [HttpPost]
     public async Task<IActionResult> Favorite(Guid productId, bool selected, string? returnUrl, CancellationToken ct)
     {
-        try { await social.SetFavoriteAsync(UserId, productId, selected, ct); }
-        catch (KeyNotFoundException) { return NotFound(); }
+        var wantsJson = Request.Headers.Accept.ToString().Contains("application/json", StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            var saved = await social.SetFavoriteAsync(UserId, productId, selected, ct);
+            if (wantsJson) return Json(new { selected = saved });
+        }
+        catch (KeyNotFoundException)
+        {
+            return wantsJson ? NotFound(new { error = "Món đồ không còn mở bán." }) : NotFound();
+        }
         return LocalRedirect(Url.IsLocalUrl(returnUrl) ? returnUrl! : Url.Action("Index", "Shop")!);
     }
     [HttpPost]

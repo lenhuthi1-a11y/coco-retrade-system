@@ -252,14 +252,15 @@ public sealed class AdminModuleTests
             foreach (var p in initial) SetVersion(p, BitConverter.GetBytes(Interlocked.Increment(ref rowVersion)));
         }
         public Task<Product?> FindAsync(Guid id, CancellationToken ct) => Task.FromResult(products.GetValueOrDefault(id));
-        public Task<IReadOnlyList<AdminProductItem>> ListAsync(ProductStatus? status, string? search, CancellationToken ct, bool inspectedOnly = false) =>
+        public Task<IReadOnlyList<AdminProductItem>> ListAsync(ProductStatus? status, string? search, CancellationToken ct, bool readyForInspectionOnly = false) =>
             Task.FromResult<IReadOnlyList<AdminProductItem>>(products.Values.Where(x => (status is null || x.Status == status) &&
-                (!inspectedOnly || x.LatestInspectionId != null))
+                (!readyForInspectionOnly || x.PreliminaryStatus == PreliminaryReviewStatus.Approved))
                 .Select(x => new AdminProductItem(x.Id, x.ConsignmentCode, x.Sku, x.Name, x.Brand, "Seller", x.Status,
                     x.VerifiedCondition, x.CreatedAtUtc)).ToList());
         public Task<AdminProductDashboard> DashboardAsync(CancellationToken ct) =>
             Task.FromResult(new AdminProductDashboard(products.Values.Count(x => x.Status == ProductStatus.PendingApproval),
-                0, products.Values.Count(x => x.Status == ProductStatus.Active), 0, 0, 0));
+                products.Values.Count(x => x.Status == ProductStatus.PendingApproval && x.PreliminaryStatus == PreliminaryReviewStatus.Approved),
+                products.Values.Count(x => x.Status == ProductStatus.Active), 0, 0, 0));
         public Task<IReadOnlyList<AuditEntry>> AuditAsync(Guid? productId, CancellationToken ct) =>
             Task.FromResult<IReadOnlyList<AuditEntry>>(Audits.Select(x => new AuditEntry(x.Id, x.ActorId, x.Action,
                 x.EntityType, x.EntityId, x.Details, x.CreatedAtUtc)).ToList());

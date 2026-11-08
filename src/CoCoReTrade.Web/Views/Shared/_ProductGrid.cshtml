@@ -20,7 +20,7 @@ else
                 {
                     @if (User.Identity?.IsAuthenticated == true)
                     {
-                        <form asp-area="" asp-controller="Social" asp-action="Favorite" method="post" class="product-card-favorite">
+                        <form asp-area="" asp-controller="Social" asp-action="Favorite" method="post" class="product-card-favorite" data-favorite data-product-name="@p.Name">
                             <input type="hidden" name="productId" value="@p.Id" />
                             <input type="hidden" name="selected" value="@(!savedIds.Contains(p.Id) ? "true" : "false")" />
                             <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />

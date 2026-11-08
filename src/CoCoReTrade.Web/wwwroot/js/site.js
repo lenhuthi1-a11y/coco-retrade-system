@@ -1,8 +1,66 @@
+(() => {
+  const forms = Array.from(document.querySelectorAll('form[data-favorite]'));
+  let feedbackTimer;
+  function showError(message) {
+    let feedback = document.getElementById('favoriteFeedback');
+    if (!feedback) {
+      feedback = document.createElement('div');
+      feedback.id = 'favoriteFeedback';
+      feedback.className = 'cart-feedback is-error';
+      feedback.setAttribute('role', 'alert');
+      document.body.append(feedback);
+    }
+    feedback.textContent = message;
+    feedback.hidden = false;
+    clearTimeout(feedbackTimer);
+    feedbackTimer = setTimeout(() => { feedback.hidden = true; }, 4000);
+  }
+  forms.forEach(form => form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    const productId = form.elements.namedItem('productId').value;
+    const related = forms.filter(item => item.elements.namedItem('productId').value === productId);
+    related.forEach(item => { item.querySelector('button[type="submit"]').disabled = true; });
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST', body: new FormData(form), credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.headers.get('content-type')?.includes('application/json')) {
+        showError('Phiên làm việc đã thay đổi. Vui lòng tải lại trang rồi thử lại.');
+        return;
+      }
+      const result = await response.json();
+      if (!response.ok || typeof result.selected !== 'boolean') {
+        showError(result.error || 'Không cập nhật được yêu thích. Vui lòng thử lại.');
+        return;
+      }
+      related.forEach(item => {
+        const toggle = item.querySelector('button[type="submit"]');
+        item.elements.namedItem('selected').value = String(!result.selected);
+        toggle.classList.toggle('is-saved', result.selected);
+        toggle.setAttribute('aria-pressed', String(result.selected));
+        toggle.setAttribute('aria-label', `${result.selected ? 'Bỏ lưu' : 'Lưu'} ${item.dataset.productName}`);
+        const label = item.querySelector('[data-favorite-label]');
+        if (label) label.textContent = result.selected ? 'Đã lưu · Bỏ lưu món đồ' : 'Lưu món đồ để xem sau';
+      });
+    } catch {
+      showError('Không kết nối được. Vui lòng thử lại.');
+    } finally {
+      related.forEach(item => { item.querySelector('button[type="submit"]').disabled = false; });
+    }
+  }));
+})();
+
 document.querySelectorAll('input[data-preview]').forEach(input => {
   let selected = [];
   const target = document.getElementById(input.dataset.preview);
   if (!target) return;
   const maxFiles = Number(input.dataset.maxFiles) || 10;
+  const dropzone = input.closest('[data-photo-dropzone]');
+  const addButton = input.closest('section')?.querySelector('[data-photo-add]');
+  addButton?.addEventListener('click', () => input.click());
   const existing = input.closest('form')?.querySelector('#existingPhotos');
   const existingCount = () => existing?.querySelectorAll('[data-existing-photo]:not([hidden])').length || 0;
   function render() {
@@ -26,6 +84,8 @@ document.querySelectorAll('input[data-preview]').forEach(input => {
       item.append(image, remove);
       target.append(item);
     });
+    if (dropzone) dropzone.hidden = selected.length > 0;
+    if (addButton) addButton.disabled = selected.length + existingCount() >= maxFiles;
   }
   input.addEventListener('change', () => {
     const incoming = Array.from(input.files);
@@ -40,6 +100,20 @@ document.querySelectorAll('input[data-preview]').forEach(input => {
     }
     render();
   });
+  if (dropzone) {
+    dropzone.addEventListener('dragover', event => {
+      event.preventDefault();
+      dropzone.classList.add('is-dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('is-dragover'));
+    dropzone.addEventListener('drop', event => {
+      event.preventDefault();
+      dropzone.classList.remove('is-dragover');
+      if (!event.dataTransfer?.files.length) return;
+      input.files = event.dataTransfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
   existing?.querySelectorAll('[data-remove-existing]').forEach(button => {
     button.addEventListener('click', () => {
       const item = button.closest('[data-existing-photo]');
@@ -48,6 +122,19 @@ document.querySelectorAll('input[data-preview]').forEach(input => {
       render();
     });
   });
+});
+
+document.querySelectorAll('[data-held-countdown]').forEach(element => {
+  const deadline = Number(element.dataset.heldCountdown);
+  const refresh = () => {
+    const minutes = Math.max(0, Math.ceil((deadline - Date.now()) / 60000));
+    element.textContent = minutes > 0 ? `${Math.floor(minutes / 60)} giờ ${minutes % 60} phút` : 'Đã hết hạn';
+  };
+  refresh();
+  const timer = window.setInterval(() => {
+    refresh();
+    if (Date.now() >= deadline) window.clearInterval(timer);
+  }, 30000);
 });
 
 document.querySelectorAll('form.listing-form').forEach(form => {
@@ -71,10 +158,27 @@ document.querySelectorAll('input[data-vnd-price]').forEach(input => {
   const format = value => value.replace(/[^0-9]/g, '').replace(/^0+(?=[0-9])/, '')
     .replace(/\B(?=([0-9]{3})+(?![0-9]))/g, ',');
   input.value = input.value === '0' ? '' : format(input.value);
-  input.addEventListener('input', () => {
-    const digitsBeforeCaret = input.value.slice(0, input.selectionStart ?? input.value.length)
-      .replace(/[^0-9]/g, '').length;
-    const formatted = format(input.value);
+  let composing = false;
+  const preview = document.createElement('span');
+  preview.className = 'vnd-price-preview';
+  preview.setAttribute('aria-hidden', 'true');
+  input.after(preview);
+  const showPreview = () => {
+    preview.textContent = format(input.value);
+    input.classList.add('vnd-price-composing');
+  };
+  const hidePreview = () => {
+    input.classList.remove('vnd-price-composing');
+    preview.textContent = '';
+  };
+  const formatInput = () => {
+    const value = input.value;
+    const caret = input.selectionStart ?? value.length;
+    const digitsBeforeCaret = value.slice(0, caret).replace(/[^0-9]/g, '')
+      .replace(/^0+(?=[0-9])/, '').length;
+    const formatted = format(value);
+    // Avoid resetting the IME's editing buffer when no formatting is needed.
+    if (formatted === value) return;
     input.value = formatted;
     let position = 0;
     let digits = 0;
@@ -83,6 +187,35 @@ document.querySelectorAll('input[data-vnd-price]').forEach(input => {
       position++;
     }
     input.setSelectionRange(position, position);
+  };
+  // Wait until the IME commits its text before changing the value or caret.
+  input.addEventListener('compositionstart', () => {
+    composing = true;
+    showPreview();
+  });
+  input.addEventListener('compositionend', () => {
+    composing = false;
+    formatInput();
+    hidePreview();
+  });
+  input.addEventListener('input', event => {
+    if (composing || event.isComposing) showPreview();
+    else {
+      formatInput();
+      hidePreview();
+    }
+  });
+  input.addEventListener('blur', () => {
+    if (!composing) formatInput();
+    hidePreview();
+  });
+});
+
+new Set(Array.from(document.querySelectorAll('input[data-vnd-price]'), input => input.form).filter(Boolean)).forEach(form => {
+  form.addEventListener('formdata', event => {
+    form.querySelectorAll('input[data-vnd-price]').forEach(input => {
+      if (input.name) event.formData.set(input.name, input.value.replace(/,/g, ''));
+    });
   });
 });
 

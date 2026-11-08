@@ -25,7 +25,7 @@ public sealed record ProductDetails(Guid Id, string Sku, string Name, string Bra
     decimal OriginalPrice, decimal AskingPrice, int DeclaredCondition, int? VerifiedCondition, bool AllowOffers,
     ProductStatus Status, string SellerId, string? RejectionReason, IReadOnlyList<Guid> ImageIds, DateTime CreatedAtUtc,
     string ConsignmentCode = "", string SellerName = "", PreliminaryReviewStatus PreliminaryStatus = PreliminaryReviewStatus.Pending,
-    string? PreliminaryReason = null, string RowVersion = "");
+    string? PreliminaryReason = null, string RowVersion = "", DateTime? PublishedAtUtc = null);
 
 public interface IProductRepository
 {
@@ -184,5 +184,6 @@ public sealed class ProductService(IProductRepository repository, IPrivateImageS
         p.OriginalPrice, p.AskingPrice, p.DeclaredCondition, p.VerifiedCondition, p.AllowOffers, p.Status, p.SellerId,
         p.RejectionReason, p.Images.OrderBy(i => i.SortOrder).Select(i => i.Id).ToList(), p.CreatedAtUtc,
         p.Status == ProductStatus.Active ? string.Empty : p.ConsignmentCode, PreliminaryStatus: p.PreliminaryStatus,
-        PreliminaryReason: p.PreliminaryReason, RowVersion: Convert.ToBase64String(p.RowVersion));
+        PreliminaryReason: p.PreliminaryReason, RowVersion: Convert.ToBase64String(p.RowVersion),
+        PublishedAtUtc: p.PublishedAtUtc);
 }

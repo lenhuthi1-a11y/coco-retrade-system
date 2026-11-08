@@ -11,13 +11,13 @@ public sealed class AdminProductRepository(AppDbContext db) : IAdminProductRepos
         .Include(x => x.Images).Include(x => x.Inspections).ThenInclude(x => x.Images)
         .AsSplitQuery().FirstOrDefaultAsync(x => x.Id == id, ct);
 
-    public async Task<IReadOnlyList<AdminProductItem>> ListAsync(ProductStatus? status, string? search, CancellationToken ct, bool inspectedOnly = false)
+    public async Task<IReadOnlyList<AdminProductItem>> ListAsync(ProductStatus? status, string? search, CancellationToken ct, bool readyForInspectionOnly = false)
     {
         var query = from p in db.Products.AsNoTracking()
                     join u in db.Users.AsNoTracking() on p.SellerId equals u.Id
                     select new { Product = p, SellerName = u.FullName };
         if (status.HasValue) query = query.Where(x => x.Product.Status == status.Value);
-        if (inspectedOnly) query = query.Where(x => x.Product.LatestInspectionId != null);
+        if (readyForInspectionOnly) query = query.Where(x => x.Product.PreliminaryStatus == PreliminaryReviewStatus.Approved);
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
@@ -36,8 +36,8 @@ public sealed class AdminProductRepository(AppDbContext db) : IAdminProductRepos
         var groups = await db.Products.AsNoTracking().GroupBy(x => x.Status)
             .Select(x => new { Status = x.Key, Count = x.Count() }).ToListAsync(ct);
         int Count(ProductStatus status) => groups.FirstOrDefault(x => x.Status == status)?.Count ?? 0;
-        var inspected = await db.Products.AsNoTracking().CountAsync(x => x.Status == ProductStatus.PendingApproval && x.LatestInspectionId != null, ct);
-        return new AdminProductDashboard(Count(ProductStatus.PendingApproval), inspected, Count(ProductStatus.Active),
+        var readyForInspection = await db.Products.AsNoTracking().CountAsync(x => x.Status == ProductStatus.PendingApproval && x.PreliminaryStatus == PreliminaryReviewStatus.Approved, ct);
+        return new AdminProductDashboard(Count(ProductStatus.PendingApproval), readyForInspection, Count(ProductStatus.Active),
             Count(ProductStatus.Rejected), Count(ProductStatus.Reserved), Count(ProductStatus.Sold));
     }
     public async Task<IReadOnlyList<AuditEntry>> AuditAsync(Guid? productId, CancellationToken ct)

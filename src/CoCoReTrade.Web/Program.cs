@@ -107,6 +107,7 @@ builder.Services.AddScoped<IStaffPermissionChecker, StaffPermissionChecker>();
 builder.Services.AddScoped<IProductLifecycleService, ProductLifecycleService>();
 builder.Services.AddScoped<IOrderLifecycleService, OrderLifecycleService>();
 builder.Services.AddScoped<IAdminProductRepository, AdminProductRepository>();
+builder.Services.AddScoped<IAdminDashboardCountRepository, AdminDashboardCountRepository>();
 builder.Services.AddScoped<IAdminProductService, AdminProductService>();
 builder.Services.AddScoped<IAdminUserRepository, AdminUserRepository>();
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
@@ -163,9 +164,10 @@ var innerZones = builder.Configuration.GetSection("Shipping:InnerCityZones").Get
     .Select(x => new ShippingZone(x["Province"] ?? "", x["Ward"] ?? "")).ToList();
 builder.Services.AddSingleton(new ShippingPolicy(innerZones,
     builder.Configuration.GetValue<int?>("Shipping:StoreUtcOffsetHours") ?? 7,
-    builder.Configuration.GetValue<int?>("Shipping:OpeningHour") ?? 9,
+    builder.Configuration.GetValue<int?>("Shipping:OpeningHour") ?? 8,
     builder.Configuration.GetValue<int?>("Shipping:ClosingHour") ?? 21,
-    builder.Configuration["Shipping:StoreAddress"] ?? ""));
+    builder.Configuration["Shipping:StoreAddress"] ?? "",
+    builder.Configuration.GetValue<int?>("Shipping:OpeningMinute") ?? 30));
 
 var app = builder.Build();
 app.UseRequestLocalization(new RequestLocalizationOptions

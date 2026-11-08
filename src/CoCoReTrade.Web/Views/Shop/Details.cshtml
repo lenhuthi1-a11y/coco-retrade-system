@@ -1,10 +1,12 @@
 ﻿@model ProductDetails
 @inject MarketplacePolicy OfferPolicy
+@inject ShippingPolicy Shipping
 @{
     ViewData["Title"] = Model.Name;
     var isAuthenticated = User.Identity?.IsAuthenticated == true;
     var isSeller = Model.SellerId == User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
     var canPurchase = Model.Status == ProductStatus.Active && !isSeller;
+    var sellerProfile = (UserProfileDto?)ViewBag.SellerProfile;
 }
 <nav class="breadcrumbs" aria-label="Đường dẫn"><a asp-action="Index">Khám phá</a><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#chevron-right" /></svg><span>@Model.Name</span></nav>
 <div class="row g-4 g-xl-5 product-detail">
@@ -65,31 +67,31 @@
                         <div class="col-6"><form asp-controller="Messages" asp-action="Start" method="post"><input type="hidden" name="productId" value="@Model.Id" /><button type="submit" class="btn btn-light w-100"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#message" /></svg> Nhắn người bán</button></form></div>
                     </div>
                 }
+                @if (Model.PublishedAtUtc.HasValue)
+                {
+                    var publishedLocal = new DateTimeOffset(Model.PublishedAtUtc.Value, TimeSpan.Zero)
+                        .ToOffset(TimeSpan.FromHours(Shipping.StoreUtcOffsetHours));
+                    <p class="small text-muted mt-3 mb-0">Ngày đăng bán: <time datetime="@publishedLocal.ToString("yyyy-MM-ddTHH:mm:sszzz")">@publishedLocal.ToString("dd/MM/yyyy")</time></p>
+                }
                 <p class="purchase-note"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#package" /></svg> Nhận tại CoCo hoặc giao tận nơi. Thanh toán khi nhận hàng.</p>
             </div>
         }
         @if (Model.Status == ProductStatus.Active && isAuthenticated)
         {
-            <form asp-controller="Social" asp-action="Favorite" method="post" class="mt-3">
+            <form asp-controller="Social" asp-action="Favorite" method="post" class="mt-3" data-favorite data-product-name="@Model.Name">
                 <input type="hidden" name="productId" value="@Model.Id" />
                 <input type="hidden" name="selected" value="@((bool)ViewBag.IsFavorite ? "false" : "true")" />
                 <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
-                <button type="submit" class="btn btn-link text-link p-0"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#heart" /></svg> @((bool)ViewBag.IsFavorite ? "Đã lưu · Bỏ lưu món đồ" : "Lưu món đồ để xem sau")</button>
+                <button type="submit" class="btn btn-link text-link p-0" aria-pressed="@((bool)ViewBag.IsFavorite ? "true" : "false")"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#heart" /></svg> <span data-favorite-label>@((bool)ViewBag.IsFavorite ? "Đã lưu · Bỏ lưu món đồ" : "Lưu món đồ để xem sau")</span></button>
             </form>
         }
-        @if (!string.IsNullOrWhiteSpace((string?)ViewBag.SellerName))
+        @if (Model.Status == ProductStatus.Active && sellerProfile is not null)
         {
-            <div class="seller-line d-flex flex-wrap justify-content-between align-items-center gap-3 mt-4">
-                <div><span class="small text-muted d-block">Từ tủ đồ của</span><a class="fw-semibold" asp-controller="Sellers" asp-action="Index" asp-route-id="@Model.SellerId">@ViewBag.SellerName <svg class="icon" aria-hidden="true"><use href="/images/icons.svg#chevron-right" /></svg></a></div>
-                @if (isAuthenticated && !isSeller)
-                {
-                    <form asp-controller="Social" asp-action="Follow" method="post">
-                        <input type="hidden" name="sellerId" value="@Model.SellerId" />
-                        <input type="hidden" name="selected" value="@((bool)ViewBag.IsFollowing ? "false" : "true")" />
-                        <input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" />
-                        <button type="submit" class="btn btn-outline-wine btn-sm">@((bool)ViewBag.IsFollowing ? "Đang theo dõi · Bỏ theo dõi" : "Theo dõi tủ đồ")</button>
-                    </form>
-                }
+            <div class="seller-card mt-4">
+                @if (sellerProfile.HasAvatar) { <img class="seller-card-avatar" src="/avatars/@sellerProfile.Id" alt="" /> }
+                else { <span class="seller-card-avatar seller-card-avatar-empty" aria-hidden="true"></span> }
+                <div class="seller-card-info"><strong>Người ký gửi: @sellerProfile.FullName</strong><span>Điểm tín nhiệm: @sellerProfile.TrustScore/100 · Đã bán @sellerProfile.SoldCount món</span></div>
+                <a class="seller-card-link" asp-controller="Sellers" asp-action="Index" asp-route-id="@Model.SellerId">Xem gian hàng →</a>
             </div>
         }
         @if (isSeller && Model.Status == ProductStatus.PendingApproval)

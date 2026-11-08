@@ -1,6 +1,7 @@
 @using System.Security.Claims
 @using Microsoft.AspNetCore.Authorization
 @inject CoCoReTrade.Application.IUserProfileService UserProfiles
+@inject CoCoReTrade.Application.ShippingPolicy Shipping
 @inject IAuthorizationService Authorization
 @{
     CoCoReTrade.Application.UserProfileDto? headerProfile = null;
@@ -89,7 +90,15 @@
     </div>
     @if (!inAdmin)
     {
-        <footer class="site-footer"><div class="container footer-inner"><div class="footer-brand"><img src="~/images/coco-logo.svg" alt="CoCo ReTrade" width="78" height="61" /><p>Thêm vòng đời cho món đồ.<br />Thêm lựa chọn cho bạn.</p></div><nav aria-label="Thông tin CoCo"><a asp-area="" asp-controller="Home" asp-action="Terms">Chính sách & quy định</a><a asp-area="" asp-controller="Support" asp-action="Index">Trung tâm hỗ trợ</a><span>© @DateTime.UtcNow.Year CoCo ReTrade</span></nav></div></footer>
+        <footer class="site-footer"><div class="container footer-inner">
+            <div class="footer-grid">
+                <div class="footer-brand"><a asp-area="" asp-controller="Home" asp-action="Index" class="footer-logo">CoCo ReTrade</a><p>Nền tảng ký gửi & thời trang tuần hoàn văn minh. Mọi món đồ đều được kiểm định chất lượng, độ mới và đóng gói chuyên nghiệp trước khi trao gửi.</p></div>
+                <nav class="footer-column" aria-label="Danh mục"><h2>Danh mục</h2><a asp-area="" asp-controller="Shop" asp-action="Index" asp-route-category="Áo">Áo nữ & áo unisex</a><a asp-area="" asp-controller="Shop" asp-action="Index" asp-route-category="Quần">Quần tây & denim</a><a asp-area="" asp-controller="Shop" asp-action="Index" asp-route-category="Đầm/Váy">Đầm / Váy thiết kế</a><a asp-area="" asp-controller="Shop" asp-action="Index" asp-route-category="Túi">Túi xách & balo</a><a asp-area="" asp-controller="Shop" asp-action="Index" asp-route-category="Phụ kiện">Phụ kiện thời trang</a></nav>
+                <nav class="footer-column" aria-label="Về CoCo"><h2>Về CoCo</h2><a asp-area="" asp-controller="Home" asp-action="Terms">Quy trình kiểm định 100%</a><a asp-area="" asp-controller="Home" asp-action="Terms">Chính sách ký gửi & mua hàng</a><a asp-area="" asp-controller="Home" asp-action="Terms">Quy định đổi trả hàng</a><a asp-area="" asp-controller="Support" asp-action="Index">Trung tâm trợ giúp</a></nav>
+                <div class="footer-column"><h2>Liên hệ & hỗ trợ</h2><a asp-area="" asp-controller="Support" asp-action="Index">Gửi yêu cầu hỗ trợ</a><span>Giờ làm việc: @Shipping.OpeningHour.ToString("00"):@Shipping.OpeningMinute.ToString("00") – @Shipping.ClosingHour.ToString("00"):00</span></div>
+            </div>
+            <div class="footer-bottom">© @DateTime.UtcNow.Year CoCo ReTrade — Nền tảng thời trang tuần hoàn. Bảo lưu mọi quyền.</div>
+        </div></footer>
         <nav class="bottom-nav d-lg-none" aria-label="Điều hướng di động">
             <a class="@Selected("Home", "Index")" asp-area="" asp-controller="Home" asp-action="Index"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#home"></use></svg><span>Trang chủ</span></a>
             <a class="@Selected("Shop")" asp-area="" asp-controller="Shop" asp-action="Index"><svg class="icon" aria-hidden="true"><use href="/images/icons.svg#search"></use></svg><span>Khám phá</span></a>

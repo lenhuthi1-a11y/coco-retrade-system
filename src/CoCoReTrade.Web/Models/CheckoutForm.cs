@@ -15,7 +15,7 @@ public sealed class CheckoutForm
     public string RecipientPhone { get; set; } = "";
     [Required(ErrorMessage = "Vui lòng nhập trường này."), Display(Name = "Hình thức nhận")]
     public FulfillmentType Fulfillment { get; set; } = FulfillmentType.Pickup;
-    [Display(Name = "Ngày giờ tới lấy")]
+    [Display(Name = "Ngày giờ dự kiến đến lấy")]
     public string? PickupLocal { get; set; }
     [MaxLength(120, ErrorMessage = "Tối đa {1} ký tự."), Display(Name = "Tỉnh / thành phố")]
     public string? Province { get; set; }

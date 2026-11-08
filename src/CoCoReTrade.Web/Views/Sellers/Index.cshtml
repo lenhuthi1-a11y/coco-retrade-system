@@ -1,6 +1,21 @@
 @model IReadOnlyList<ProductCard>
-@{ ViewData["Title"] = "Tủ đồ " + ViewBag.SellerName; var seller = (UserProfileDto?)ViewBag.SellerProfile; }
-<div class="d-flex align-items-center gap-3 mt-4 mb-3">@if (seller?.HasAvatar == true) { <img class="seller-avatar" src="/avatars/@seller.Id" alt="Ảnh đại diện @seller.FullName" /> }<div><div class="eyebrow">Người bán CoCo</div><h1 class="page-title mt-1 mb-0">Tủ đồ @ViewBag.SellerName</h1><p class="subtitle mb-0">Điểm tín nhiệm @(seller?.TrustScore ?? 100)/100</p></div></div>
-@if (User.Identity?.IsAuthenticated == true && ViewBag.SellerId != User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
-{ <form asp-controller="Social" asp-action="Follow" method="post" class="mb-4"><input type="hidden" name="sellerId" value="@ViewBag.SellerId" /><input type="hidden" name="selected" value="@((bool)ViewBag.IsFollowing ? "false" : "true")" /><input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" /><button type="submit" class="btn btn-outline-wine">@((bool)ViewBag.IsFollowing ? "Bỏ theo dõi" : "+ Theo dõi")</button></form> }
+@{
+    ViewData["Title"] = "Tủ đồ " + ViewBag.SellerName;
+    var seller = (UserProfileDto?)ViewBag.SellerProfile;
+    var filter = (ProductFilter)ViewBag.Filter;
+    var hasFilters = !string.IsNullOrWhiteSpace(filter.Category) || !string.IsNullOrWhiteSpace(filter.Brand) || !string.IsNullOrWhiteSpace(filter.Size)
+        || filter.MinPrice.HasValue || filter.MaxPrice.HasValue || filter.MinCondition.HasValue || !string.IsNullOrWhiteSpace(filter.Fulfillment);
+}
+<div class="seller-page-heading d-flex align-items-center gap-3 mt-4 mb-4">
+    @if (seller?.HasAvatar == true) { <img class="seller-avatar" src="/avatars/@seller.Id" alt="Ảnh đại diện @seller.FullName" /> }
+    else { <span class="seller-avatar seller-avatar-empty" aria-hidden="true"></span> }
+    <div class="seller-page-title"><div class="eyebrow">Người dùng CoCo</div><h1 class="page-title mt-1 mb-0">Tủ đồ @ViewBag.SellerName</h1><p class="subtitle mb-0">Điểm tín nhiệm @(seller?.TrustScore ?? 100)/100</p></div>
+    <div class="seller-page-stats"><span><strong>@(seller?.ConsignedCount ?? 0)</strong> sản phẩm ký gửi</span><span><strong>@(seller?.SoldCount ?? 0)</strong> sản phẩm đã bán</span></div>
+    @if (User.Identity?.IsAuthenticated == true && ViewBag.SellerId != User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)
+    {
+        <form asp-controller="Social" asp-action="Follow" method="post" class="seller-page-follow"><input type="hidden" name="sellerId" value="@ViewBag.SellerId" /><input type="hidden" name="selected" value="@((bool)ViewBag.IsFollowing ? "false" : "true")" /><input type="hidden" name="returnUrl" value="@(Context.Request.Path + Context.Request.QueryString)" /><button type="submit" class="btn btn-outline-wine">@((bool)ViewBag.IsFollowing ? "Bỏ theo dõi" : "+ Theo dõi")</button></form>
+    }
+</div>
+<partial name="_ShopFilters" model="filter" />
+<div class="section-heading shop-results"><div><h2>@Model.Count sản phẩm</h2>@if (!string.IsNullOrWhiteSpace(filter.Search)) { <p>Kết quả cho “@filter.Search”</p> }</div>@if (hasFilters || !string.IsNullOrWhiteSpace(filter.Search)) { <a class="text-link" asp-action="Index" asp-route-id="@ViewBag.SellerId">Xóa bộ lọc</a> }</div>
 <partial name="_ProductGrid" model="Model" />
